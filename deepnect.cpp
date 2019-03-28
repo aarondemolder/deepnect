@@ -142,7 +142,7 @@ void saveColour()
             value = qRgb(rgb[3*x+0+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
             imageOut.setPixel(x, y, value);
         }
-        scanlineOffset+=640;
+        scanlineOffset+=640*3;
     }
 
 
