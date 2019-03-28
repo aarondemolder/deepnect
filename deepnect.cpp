@@ -2,6 +2,11 @@
 
 #include <cstdlib>
 #include <iostream>
+
+#include <fstream>
+#include <QImage>
+#include <QImageWriter>
+
 #include <vector>
 #include <libfreenect.hpp>
 
@@ -80,6 +85,84 @@ void DrawGLScene()
     glutSwapBuffers();
 }
 
+void saveDepth()
+{
+    static std::vector<uint16_t> depth(640*480);
+    device->getDepth(depth);
+
+    QImage imageOut(640, 480, QImage::Format_RGB32);
+    QRgb value;
+
+//    for (int i = 0; i < 480*640; ++i)
+//    {
+//        value = qRgb(depth[i], 0, 0);
+//        imageOut.setPixel(x, y, value);
+//    }
+//    myfile.close();
+
+//    for(int x=0; x < 640; x++)
+//        {
+//            value = qRgb(depth[x], depth[x], depth[x]);
+//            imageOut.setPixel(x, 0, value);
+//            for(int y=0; y < 480; y++)
+//            {
+//                    value = qRgb(depth[y], depth[y], depth[y]);
+//                    imageOut.setPixel(x, y, value);
+//            }
+//        }
+
+    for (int x=0; x<640; ++x)
+    {
+        //value = qRgb(depth[i], 0, 0);
+        //        imageOut.setPixel(x, y, value);
+    }
+
+    QImageWriter writerQ("outimage.bmp", "bmp");
+    writerQ.write(imageOut);
+
+}
+
+
+void saveColour()
+{
+    static std::vector<uint8_t> rgb(640*480*3);
+    device->getRGB(rgb);
+
+    QImage imageOut(640, 480, QImage::Format_RGB16);
+    QRgb value;
+
+    //012345678
+    //rgbrgbrgbr
+
+    int scanlineOffset = 0;
+    for (int y = 0; y < 480; ++y)
+    {
+        for (int x = 0; x < 640; ++x)
+        {
+            value = qRgb(rgb[3*x+0+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
+            imageOut.setPixel(x, y, value);
+        }
+        scanlineOffset+=640;
+    }
+
+
+//    for(int x=0; x < 1; x++)
+//        {
+//            for(int y=0; y < 3; y++)
+//            {
+//                    value = qRgb(rgb[]);
+//                    imageOut.setPixel(x, y, value);
+//            }
+//        }
+
+    //static_cast<int>(rgb[3*(i)+0])
+
+
+    QImageWriter writerQ("outimage.bmp", "bmp");
+    writerQ.write(imageOut);
+
+}
+
 
 void keyPressed(unsigned char key, int x, int y)
 {
@@ -88,7 +171,17 @@ void keyPressed(unsigned char key, int x, int y)
         case  'C':
         case  'c':
             color = !color;
-            break;
+        break;
+
+    case 'S':
+    case 's':
+        saveColour();
+    break;
+
+    case 'D':
+    case 'd':
+        saveDepth();
+    break;
 
         case  'Q':
         case  'q':
@@ -97,6 +190,8 @@ void keyPressed(unsigned char key, int x, int y)
             device->stopDepth();
             device->stopVideo();
             exit(0);
+
+
     }
 }
 
