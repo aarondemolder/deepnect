@@ -93,31 +93,21 @@ void saveDepth()
     QImage imageOut(640, 480, QImage::Format_RGB32);
     QRgb value;
 
-//    for (int i = 0; i < 480*640; ++i)
-//    {
-//        value = qRgb(depth[i], 0, 0);
-//        imageOut.setPixel(x, y, value);
-//    }
-//    myfile.close();
 
-//    for(int x=0; x < 640; x++)
-//        {
-//            value = qRgb(depth[x], depth[x], depth[x]);
-//            imageOut.setPixel(x, 0, value);
-//            for(int y=0; y < 480; y++)
-//            {
-//                    value = qRgb(depth[y], depth[y], depth[y]);
-//                    imageOut.setPixel(x, y, value);
-//            }
-//        }
-
-    for (int x=0; x<640; ++x)
+    int scanlineOffset = 0;
+    for (int y = 0; y < 480; ++y)
     {
-        //value = qRgb(depth[i], 0, 0);
-        //        imageOut.setPixel(x, y, value);
+        for (int x = 0; x < 640; ++x)
+        {
+            //std::cout<<depth[x+scanlineOffset]<<" ";
+            value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
+            imageOut.setPixel(x, y, value/1000);
+        }
+        //std::cout<<"\n";
+        scanlineOffset+=640;
     }
 
-    QImageWriter writerQ("outimage.bmp", "bmp");
+    QImageWriter writerQ("outimage_depth.bmp", "bmp");
     writerQ.write(imageOut);
 
 }
@@ -131,32 +121,16 @@ void saveColour()
     QImage imageOut(640, 480, QImage::Format_RGB16);
     QRgb value;
 
-    //012345678
-    //rgbrgbrgbr
-
     int scanlineOffset = 0;
     for (int y = 0; y < 480; ++y)
     {
         for (int x = 0; x < 640; ++x)
         {
-            value = qRgb(rgb[3*x+0+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
+            value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
             imageOut.setPixel(x, y, value);
         }
         scanlineOffset+=640*3;
     }
-
-
-//    for(int x=0; x < 1; x++)
-//        {
-//            for(int y=0; y < 3; y++)
-//            {
-//                    value = qRgb(rgb[]);
-//                    imageOut.setPixel(x, y, value);
-//            }
-//        }
-
-    //static_cast<int>(rgb[3*(i)+0])
-
 
     QImageWriter writerQ("outimage.bmp", "bmp");
     writerQ.write(imageOut);
