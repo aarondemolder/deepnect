@@ -101,7 +101,7 @@ void saveDepth()
         {
             //std::cout<<depth[x+scanlineOffset]<<" ";
             value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
-            imageOut.setPixel(x, y, value/1000);
+            imageOut.setPixel(x, y, value/100.f);
         }
         //std::cout<<"\n";
         scanlineOffset+=640;
