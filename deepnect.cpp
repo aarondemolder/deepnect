@@ -2,15 +2,13 @@
 
 #include <cstdlib>
 #include <iostream>
-
-#include <fstream>
-#include <QImage>
-#include <QImageWriter>
-
 #include <vector>
 #include <libfreenect.hpp>
 
 #include <class_container.h>
+
+#include <QImage>
+#include <QImageWriter>
 
 #if defined(__APPLE__)
 #include <GLUT/glut.h>
@@ -29,8 +27,8 @@ float zoom = 1;               // Zoom factor
 bool color = true;            // Flag to indicate to use of color in the cloud
 int frameNum = 0;              //framecounter for filename output
 bool record = false;            //recordflag
-int depthNum = 0;
-bool recordDepth = false;
+int depthNum = 0;               //framecounter for depth output
+bool recordDepth = false;       //recordflag for depth
 
 
 
@@ -89,7 +87,11 @@ void DrawGLScene()
 
     glutSwapBuffers();
 
+    //end opengl
 
+    //below image saving - should probably limit fps to 30
+
+    //if toggled, records rgb stream (but perhaps at opengl refresh rate?) into images folder
     if (record == true)
     {
         QImage imageOut(640, 480, QImage::Format_RGB16);
@@ -112,9 +114,10 @@ void DrawGLScene()
         frameNum++;
     }
 
+    //if toggled, records funky depth sequences as rgb into image folder
     if (recordDepth  == true)
     {
-        QImage imageOut(640, 480, QImage::Format_RGB32);
+        QImage imageOut(640, 480, QImage::Format_RGB16);
         QRgb value;
 
 
@@ -123,11 +126,9 @@ void DrawGLScene()
         {
             for (int x = 0; x < 640; ++x)
             {
-                //std::cout<<depth[x+scanlineOffset]<<" ";
                 value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
                 imageOut.setPixel(x, y, value/100.f);
             }
-            //std::cout<<"\n";
             scanlineOffset+=640;
         }
 
@@ -139,6 +140,7 @@ void DrawGLScene()
 
 }
 
+//saves single depth frame but as funky rgb
 void saveDepth()
 {
     static std::vector<uint16_t> depth(640*480);
@@ -147,13 +149,11 @@ void saveDepth()
     QImage imageOut(640, 480, QImage::Format_RGB32);
     QRgb value;
 
-
     int scanlineOffset = 0;
     for (int y = 0; y < 480; ++y)
     {
         for (int x = 0; x < 640; ++x)
         {
-            //std::cout<<depth[x+scanlineOffset]<<" ";
             value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
             imageOut.setPixel(x, y, value/100.f);
         }
@@ -166,15 +166,19 @@ void saveDepth()
 
 }
 
-
+//save single RGB frame
 void saveColour()
 {
+    //create array for rgb channels for img and get true values from kinect
     static std::vector<uint8_t> rgb(640*480*3);
     device->getRGB(rgb);
 
+    //init qimage to put that data into
     QImage imageOut(640, 480, QImage::Format_RGB16);
     QRgb value;
 
+    //offset is for splitting the 1D pixel array into 640px widths
+    //then we put everything into the correct x,y position for the image writer
     int scanlineOffset = 0;
     for (int y = 0; y < 480; ++y)
     {
@@ -212,6 +216,7 @@ void keyPressed(unsigned char key, int x, int y)
 
     case 'R':
     case 'r':
+        //toggle bool with flip
         record = !record;
     break;
 
