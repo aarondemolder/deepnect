@@ -27,6 +27,9 @@ int mx = -1, my = -1;         // Prevous mouse coordinates
 float anglex = 0, angley = 0; // Panning angles
 float zoom = 1;               // Zoom factor
 bool color = true;            // Flag to indicate to use of color in the cloud
+int frameNum = 0;              //framecounter for filename output
+bool record = false;            //recordflag
+
 
 
 void DrawGLScene()
@@ -83,6 +86,30 @@ void DrawGLScene()
                      0.0,      -1.0,     0.0 );
 
     glutSwapBuffers();
+
+
+
+    if (record == true)
+    {
+        QImage imageOut(640, 480, QImage::Format_RGB16);
+        QRgb value;
+
+        int scanlineOffset = 0;
+        for (int y = 0; y < 480; ++y)
+        {
+            for (int x = 0; x < 640; ++x)
+            {
+                value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
+                imageOut.setPixel(x, y, value);
+            }
+            scanlineOffset+=640*3;
+        }
+
+        QString s = QString::number(frameNum);
+        QImageWriter writerQ("images/"+s, "bmp");
+        writerQ.write(imageOut);
+        frameNum++;
+    }
 }
 
 void saveDepth()
@@ -137,7 +164,6 @@ void saveColour()
 
 }
 
-
 void keyPressed(unsigned char key, int x, int y)
 {
     switch (key)
@@ -155,6 +181,11 @@ void keyPressed(unsigned char key, int x, int y)
     case 'D':
     case 'd':
         saveDepth();
+    break;
+
+    case 'R':
+    case 'r':
+        record = !record;
     break;
 
         case  'Q':
