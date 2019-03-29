@@ -29,6 +29,8 @@ float zoom = 1;               // Zoom factor
 bool color = true;            // Flag to indicate to use of color in the cloud
 int frameNum = 0;              //framecounter for filename output
 bool record = false;            //recordflag
+int depthNum = 0;
+bool recordDepth = false;
 
 
 
@@ -88,7 +90,6 @@ void DrawGLScene()
     glutSwapBuffers();
 
 
-
     if (record == true)
     {
         QImage imageOut(640, 480, QImage::Format_RGB16);
@@ -106,10 +107,36 @@ void DrawGLScene()
         }
 
         QString s = QString::number(frameNum);
-        QImageWriter writerQ("images/"+s, "bmp");
+        QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
         writerQ.write(imageOut);
         frameNum++;
     }
+
+    if (recordDepth  == true)
+    {
+        QImage imageOut(640, 480, QImage::Format_RGB32);
+        QRgb value;
+
+
+        int scanlineOffset = 0;
+        for (int y = 0; y < 480; ++y)
+        {
+            for (int x = 0; x < 640; ++x)
+            {
+                //std::cout<<depth[x+scanlineOffset]<<" ";
+                value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
+                imageOut.setPixel(x, y, value/100.f);
+            }
+            //std::cout<<"\n";
+            scanlineOffset+=640;
+        }
+
+        QString s = QString::number(depthNum);
+        QImageWriter writerQ("images/depth"+s+".bmp", "bmp");
+        writerQ.write(imageOut);
+        depthNum++;
+    }
+
 }
 
 void saveDepth()
@@ -186,6 +213,11 @@ void keyPressed(unsigned char key, int x, int y)
     case 'R':
     case 'r':
         record = !record;
+    break;
+
+    case 'P':
+    case 'p':
+        recordDepth = !recordDepth;
     break;
 
         case  'Q':
