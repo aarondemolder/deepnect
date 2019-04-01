@@ -145,7 +145,13 @@ void DrawGLScene()
         /// cons - it's slow, we could be write speed limited!
 
         std::ofstream myfile;
-        myfile.open (frameNum + "example.ply");
+
+        std::string text = "cloud_";
+        std::string extension = ".ply";
+        text += std::to_string(frameNum);
+        text += extension;
+
+        myfile.open (text);
         myfile << "ply\n";
         myfile << "format ascii 1.0\n";
         myfile << "obj_info is_mesh 0\n";
