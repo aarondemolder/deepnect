@@ -145,7 +145,7 @@ void DrawGLScene()
         /// cons - it's slow, we could be write speed limited!
 
         std::ofstream myfile;
-        myfile.open ("example.ply");
+        myfile.open (frameNum + "example.ply");
         myfile << "ply\n";
         myfile << "format ascii 1.0\n";
         myfile << "obj_info is_mesh 0\n";
@@ -169,6 +169,7 @@ void DrawGLScene()
             myfile << (i%640 - (640-1)/2.f) * depth[i] / f << " " << (i/640 - (480-1)/2.f) * depth[i] / f << " "  << depth[i] << "\n";
         }
         myfile.close();
+        frameNum++;
     }
 
 }
