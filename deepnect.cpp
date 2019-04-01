@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#include <fstream>
 #include <libfreenect.hpp>
 
 #include <class_container.h>
@@ -117,28 +118,61 @@ void DrawGLScene()
     //if toggled, records funky depth sequences as rgb into image folder
     if (recordDepth  == true)
     {
-        QImage imageOut(640, 480, QImage::Format_RGB16);
-        QRgb value;
+        ///saves depth as images instead of points
+//        QImage imageOut(640, 480, QImage::Format_RGB16);
+//        QRgb value;
 
 
-        int scanlineOffset = 0;
-        for (int y = 0; y < 480; ++y)
+//        int scanlineOffset = 0;
+//        for (int y = 0; y < 480; ++y)
+//        {
+//            for (int x = 0; x < 640; ++x)
+//            {
+//                value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
+//                imageOut.setPixel(x, y, value/100.f);
+//            }
+//            scanlineOffset+=640;
+//        }
+
+//        QString s = QString::number(depthNum);
+//        QImageWriter writerQ("images/depth"+s+".bmp", "bmp");
+//        writerQ.write(imageOut);
+//        depthNum++;
+
+
+        ///this bit saves it as point clouds, we're going for .ply beacuse ascii
+        /// pros - it works
+        /// cons - it's slow, we could be write speed limited!
+
+        std::ofstream myfile;
+        myfile.open ("example.ply");
+        myfile << "ply\n";
+        myfile << "format ascii 1.0\n";
+        myfile << "obj_info is_mesh 0\n";
+        myfile << "obj_info is_warped 0\n";
+        myfile << "obj_info is_interlaced 1\n";
+        myfile << "obj_info num_cols 640\n";
+        myfile << "obj_info num_rows 480\n";
+        myfile << "element vertex 307200\n";
+        myfile << "property float x\n";
+        myfile << "property float y\n";
+        myfile << "property float z\n";
+//        myfile << "element range_grid 204800 \n";
+//        myfile << "property list uchar int vertex_indices \n";
+        myfile << "end_header\n";
+
+        for (int i = 0; i < 480*640; ++i)
         {
-            for (int x = 0; x < 640; ++x)
-            {
-                value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
-                imageOut.setPixel(x, y, value/100.f);
-            }
-            scanlineOffset+=640;
-        }
 
-        QString s = QString::number(depthNum);
-        QImageWriter writerQ("images/depth"+s+".bmp", "bmp");
-        writerQ.write(imageOut);
-        depthNum++;
+            float f = 595.f;
+            // Convert from image plane coordinates to world coordinates
+            myfile << (i%640 - (640-1)/2.f) * depth[i] / f << " " << (i/640 - (480-1)/2.f) * depth[i] / f << " "  << depth[i] << "\n";
+        }
+        myfile.close();
     }
 
 }
+
 
 //saves single depth frame but as funky rgb
 void saveDepth()
