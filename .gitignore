@@ -55,4 +55,6 @@ install_manifest.txt
 
 deepnect
 *.ply
+*.bmp
+*.exr
 

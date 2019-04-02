@@ -7,6 +7,7 @@
 #include <libfreenect.hpp>
 
 #include <class_container.h>
+#include <vec3.h>
 
 #include <QImage>
 #include <QImageWriter>
@@ -172,13 +173,20 @@ void DrawGLScene()
 
             float f = 595.f;
             // Convert from image plane coordinates to world coordinates
-            myfile << (i%640 - (640-1)/2.f) * depth[i] / f << " " << (i/640 - (480-1)/2.f) * depth[i] / f << " "  << depth[i] << "\n";
+
+            if (depth[i] != 0)
+            {
+                myfile << (i%640 - (640-1)/2.f) * depth[i] / f << " " << (i/640 - (480-1)/2.f) * depth[i] / f << " "  << depth[i] << "\n";
+            }
+
         }
         myfile.close();
         frameNum++;
     }
 
+
 }
+
 
 
 //saves single depth frame but as funky rgb

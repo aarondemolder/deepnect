@@ -25,7 +25,8 @@ isEqual(QT_MAJOR_VERSION, 5) {
 SOURCES += \
         deepnect.cpp
 
-HEADERS += include/class_container.h
+HEADERS += include/class_container.h \
+    include/vec3.h
 
 
 INCLUDEPATH+= include \
