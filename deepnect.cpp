@@ -116,7 +116,7 @@ void DrawGLScene()
         frameNum++;
     }
 
-    //if toggled, records funky depth sequences as rgb into image folder
+    //if toggled, records colour point clouds to folder
     if (recordDepth  == true)
     {
         ///saves depth as images instead of points
@@ -171,21 +171,20 @@ void DrawGLScene()
         {
 
             float f = 595.f;
-            // Convert from image plane coordinates to world coordinates
 
-            if (depth[i] != 0)
+            if (depth[i] != 0) //ensures that points where no depth data is recorded are not saved to file
             {
-                myfile << (i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f
+                myfile << -((i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f) //x
                        << " "
-                       << (i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f
+                       << -((i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f) //y (x and y are minused in order to flip the output)
                        << " "
-                       << depth[i]/1000.f
+                       << depth[i]/1000.f //z
                        << " "
-                       << +rgb[3*i+0]
+                       << +rgb[3*i+0] //r
                        << " "
-                       << +rgb[3*i+1]
+                       << +rgb[3*i+1] //g
                        << " "
-                       << +rgb[3*i+2]
+                       << +rgb[3*i+2] //b
                        <<"\n";
             }
 
