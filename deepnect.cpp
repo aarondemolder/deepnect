@@ -155,18 +155,17 @@ void DrawGLScene()
         myfile.open (text);
         myfile << "ply\n";
         myfile << "format ascii 1.0\n";
-        myfile << "obj_info is_mesh 0\n";
-        myfile << "obj_info is_warped 0\n";
-        myfile << "obj_info is_interlaced 1\n";
         myfile << "obj_info num_cols 640\n";
         myfile << "obj_info num_rows 480\n";
         myfile << "element vertex 307200\n";
         myfile << "property float x\n";
         myfile << "property float y\n";
         myfile << "property float z\n";
-//        myfile << "element range_grid 204800 \n";
-//        myfile << "property list uchar int vertex_indices \n";
+        myfile << "property uchar red\n";
+        myfile << "property uchar green\n";
+        myfile << "property uchar blue\n";
         myfile << "end_header\n";
+
 
         for (int i = 0; i < 480*640; ++i)
         {
@@ -176,7 +175,18 @@ void DrawGLScene()
 
             if (depth[i] != 0)
             {
-                myfile << (i%640 - (640-1)/2.f) * depth[i] / f << " " << (i/640 - (480-1)/2.f) * depth[i] / f << " "  << depth[i] << "\n";
+                myfile << (i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f
+                       << " "
+                       << (i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f
+                       << " "
+                       << depth[i]/1000.f
+                       << " "
+                       << +rgb[3*i+0]
+                       << " "
+                       << +rgb[3*i+1]
+                       << " "
+                       << +rgb[3*i+2]
+                       <<"\n";
             }
 
         }
