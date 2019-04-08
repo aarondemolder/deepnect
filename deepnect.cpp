@@ -24,17 +24,23 @@
 Freenect::Freenect freenect;
 MyFreenectDevice* device;
 
+
+//c style declarations should not be happening
 int window(0);                // Glut window identifier
 int mx = -1, my = -1;         // Prevous mouse coordinates
 float anglex = 0, angley = 0; // Panning angles
 float zoom = 1;               // Zoom factor
 bool color = true;            // Flag to indicate to use of color in the cloud
+
 int frameNum = 0;              //framecounter for filename output
 bool record = false;            //recordflag
 int depthNum = 0;               //framecounter for depth output
 bool recordDepth = false;       //recordflag for depth
 
-
+bool recordBuffer = false;
+Vec6 rgbdImage[640][480];        //lets start making some sense with a 2D array for our image data
+//std::vector<std::vector<Vec6>>(rgbSeq);
+std::vector<std::vector<uint8_t>> rgbSeq;
 
 void DrawGLScene()
 {
@@ -213,9 +219,53 @@ void DrawGLScene()
     }
 
 
-    //add if buffer record true:
-    //use vec6 to dump data at 30 fps (requires timer) into lovely lil vec array
-    //once complete require button press to run saveBuffer()
+
+    if (recordBuffer == true)
+    {
+        for (int y = 0; y < 480; ++y)
+        {
+            for (int x = 0; x < 640; ++x)
+            {
+                //don't do this, it crashes the laptop... we probably need a timer - and to not do this all in the draw loop lol
+                //rgbSeq.push_back(rgb);
+
+
+            }
+        }
+    }
+
+
+
+
+
+    ///this is too complicated
+
+
+//    //add if buffer record true:
+//    //use vec6 to dump data at 30 fps (requires timer) into lovely lil vec array
+//    //once complete require button press to run saveBuffer()
+
+//    if (recordBuffer == true)
+//    {
+//        float f = 595.f;
+//        int scanlineOffset = 0;
+//        for (int y = 0; y < 480; ++y)
+//        {
+//            for (int x = 0; x < 640; ++x)
+//            {
+//                rgbSeq[0].push_back(Vec6(+rgb[3*x+scanlineOffset],
+//                                      +rgb[3*x+1+scanlineOffset],
+//                                      +rgb[3*x+2+scanlineOffset], 0,0,0));
+
+
+////                rgbdImage[x][y].x = -(((x+scanlineOffset)%640 - (640-1)/2.f) * (depth[x+scanlineOffset]/1000.f) / f);
+////                rgbdImage[x][y].y = -(((x+scanlineOffset)/640 - (480-1)/2.f) * (depth[x+scanlineOffset]/1000.f) / f);
+////                rgbdImage[x][y].z = depth[x+scanlineOffset]/1000.f;
+//            }
+//            scanlineOffset+=640*3;
+//        }
+//        frameNum++;
+//    }
 
 
 }
@@ -225,6 +275,25 @@ void saveBuffer()
 {
     //pass rgbd data here from array
     //save as rgb and point cloud sequences
+
+
+    //init qimage to put that data into
+    QImage imageOut(640, 480, QImage::Format_RGB16);
+    QRgb value;
+
+    int scanlineOffset = 0;
+    for (int y = 0; y < 480; ++y)
+    {
+        for (int x = 0; x < 640; ++x)
+        {
+            value = qRgb(rgbSeq[0][3*x+scanlineOffset],rgbSeq[0][3*x+1+scanlineOffset],rgbSeq[0][3*x+2+scanlineOffset]);
+            imageOut.setPixel(x, y, value);
+        }
+        scanlineOffset+=640*3;
+    }
+
+    QImageWriter writerQ("outimage.bmp", "bmp");
+    writerQ.write(imageOut);
 }
 
 
@@ -311,6 +380,16 @@ void keyPressed(unsigned char key, int x, int y)
     case 'P':
     case 'p':
         recordDepth = !recordDepth;
+    break;
+
+    case 'B':
+    case 'b':
+        recordBuffer = !recordBuffer;
+    break;
+
+    case 'V':
+    case 'v':
+        saveBuffer();
     break;
 
         case  'Q':

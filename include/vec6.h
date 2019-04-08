@@ -5,7 +5,7 @@ struct Vec6
 {
     Vec6()=default;
     Vec6(const Vec6 &)=default;
-    Vec6(int _r, int _g, int _b, float _x, float _y, float _z) : r(_r), g(_g), b(_b), x(_x), y(_y), z(_z){}
+    Vec6(float _r, float _g, float _b, float _x, float _y, float _z) : r(_r), g(_g), b(_b), x(_x), y(_y), z(_z){}
 
 //    void operator +=(const Vec6 &_rhs)
 //    {
@@ -24,12 +24,12 @@ struct Vec6
 //    }
 
 
-    int r = 0;
-    int g = 0;
-    int b = 0;
+    float r = 0;
+    float g = 0;
+    float b = 0;
     float x=0.0f;
     float y=0.0f;
     float z=0.0f;
 };
 
-#endif
+#endif // VEC_6_H

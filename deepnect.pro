@@ -5,7 +5,7 @@ TARGET=deepnect
 
 #QT+=gui opengl core
 
-QMAKE_CXXFLAGS += -std=c++11 -pthread
+QMAKE_CXXFLAGS += -std=c++14 -pthread
 
 #CONFIG+=c++11
 
@@ -22,12 +22,10 @@ isEqual(QT_MAJOR_VERSION, 5) {
         DEFINES +=QT5BUILD
 }
 
-SOURCES += \
-        deepnect.cpp
+SOURCES += deepnect.cpp
 
 HEADERS += include/class_container.h \
-    include/vec6.h
-
+            include/vec6.h
 
 INCLUDEPATH+= include \
                 /usr/include/libusb-1.0
@@ -40,8 +38,5 @@ LIBS += -lfreenect \
         -pthread
 
 OBJECTS_DIR=$$PWD/obj
-
-HEADERS += \
-    class_container.h
 
 CONFIG += console
