@@ -1,4 +1,6 @@
 //Base gl viewer taken from the libefreenect cpp wrapper example
+//Expanded with various saving functions for RGB and point cloud data sequences
+//
 
 #include <cstdlib>
 #include <iostream>
@@ -7,7 +9,7 @@
 #include <libfreenect.hpp>
 
 #include <class_container.h>
-#include <vec3.h>
+#include <vec6.h>
 
 #include <QImage>
 #include <QImageWriter>
@@ -166,6 +168,23 @@ void DrawGLScene()
         myfile << "property uchar blue\n";
         myfile << "end_header\n";
 
+        QImage imageOut(640, 480, QImage::Format_RGB16);
+        QRgb value;
+
+        int scanlineOffset = 0;
+        for (int y = 0; y < 480; ++y)
+        {
+            for (int x = 0; x < 640; ++x)
+            {
+                value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
+                imageOut.setPixel(x, y, value);
+            }
+            scanlineOffset+=640*3;
+        }
+
+        QString s = QString::number(frameNum);
+        QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
+        writerQ.write(imageOut);
 
         for (int i = 0; i < 480*640; ++i)
         {
@@ -194,8 +213,19 @@ void DrawGLScene()
     }
 
 
+    //add if buffer record true:
+    //use vec6 to dump data at 30 fps (requires timer) into lovely lil vec array
+    //once complete require button press to run saveBuffer()
+
+
 }
 
+
+void saveBuffer()
+{
+    //pass rgbd data here from array
+    //save as rgb and point cloud sequences
+}
 
 
 //saves single depth frame but as funky rgb

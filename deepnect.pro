@@ -26,7 +26,7 @@ SOURCES += \
         deepnect.cpp
 
 HEADERS += include/class_container.h \
-    include/vec3.h
+    include/vec6.h
 
 
 INCLUDEPATH+= include \
