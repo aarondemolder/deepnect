@@ -10,6 +10,7 @@
 
 #include <class_container.h>
 #include <vec6.h>
+#include <future>
 
 #include <QImage>
 #include <QImageWriter>
@@ -41,6 +42,98 @@ bool recordBuffer = false;
 Vec6 rgbdImage[640][480];        //lets start making some sense with a 2D array for our image data
 //std::vector<std::vector<Vec6>>(rgbSeq);
 std::vector<std::vector<uint8_t>> rgbSeq;
+
+
+
+
+//function that waits for new frame
+//once both rgb and depth are available, store them
+//assign new thread to write each frame to file
+//could probably do with a cache or buffer of sorts
+
+void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNum)
+{
+//    QImage imageOut(640, 480, QImage::Format_RGB16);
+//    QRgb value;
+
+//    int scanlineOffset = 0;
+//    for (int y = 0; y < 480; ++y)
+//    {
+//        for (int x = 0; x < 640; ++x)
+//        {
+//            value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
+//            imageOut.setPixel(x, y, value);
+//        }
+//        scanlineOffset+=640*3;
+//    }
+
+//    QString s = QString::number(frameNum);
+//    QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
+//    writerQ.write(imageOut);
+
+
+    std::ofstream myfile;
+
+    std::string text = "points/cloud_";
+    std::string extension = ".ply";
+    text += std::to_string(frameNum);
+    text += extension;
+
+    myfile.open (text);
+    myfile << "ply\n";
+    myfile << "format ascii 1.0\n";
+    myfile << "obj_info num_cols 640\n";
+    myfile << "obj_info num_rows 480\n";
+    myfile << "element vertex 307200\n";
+    myfile << "property float x\n";
+    myfile << "property float y\n";
+    myfile << "property float z\n";
+    myfile << "property uchar red\n";
+    myfile << "property uchar green\n";
+    myfile << "property uchar blue\n";
+    myfile << "end_header\n";
+
+    for (int i = 0; i < 480*640; ++i)
+    {
+
+        float f = 595.f;
+
+        if (depth[i] != 0) //ensures that points where no depth data is recorded are not saved to file
+        {
+            myfile << -((i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f) //x
+                   << " "
+                   << -((i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f) //y (x and y are minused in order to flip the output)
+                   << " "
+                   << depth[i]/1000.f //z
+                   << " "
+                   << +rgb[3*i+0] //r
+                   << " "
+                   << +rgb[3*i+1] //g
+                   << " "
+                   << +rgb[3*i+2] //b
+                   <<"\n";
+        }
+
+    }
+    myfile.close();
+
+}
+
+
+
+void delay1()
+{
+    auto Start = std::chrono::high_resolution_clock::now();
+    while (1)
+    {
+        auto End = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> Elapsed = End - Start;
+        if (Elapsed.count() >= 1000.0)
+            break;
+    }
+}
+
+
 
 void DrawGLScene()
 {
@@ -99,139 +192,11 @@ void DrawGLScene()
 
     //end opengl
 
-    //below image saving - should probably limit fps to 30
 
-    //if toggled, records rgb stream (but perhaps at opengl refresh rate?) into images folder
     if (record == true)
     {
-        QImage imageOut(640, 480, QImage::Format_RGB16);
-        QRgb value;
-
-        int scanlineOffset = 0;
-        for (int y = 0; y < 480; ++y)
-        {
-            for (int x = 0; x < 640; ++x)
-            {
-                value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
-                imageOut.setPixel(x, y, value);
-            }
-            scanlineOffset+=640*3;
-        }
-
-        QString s = QString::number(frameNum);
-        QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
-        writerQ.write(imageOut);
-        frameNum++;
-    }
-
-    //if toggled, records colour point clouds to folder
-    if (recordDepth  == true)
-    {
-        ///saves depth as images instead of points
-//        QImage imageOut(640, 480, QImage::Format_RGB16);
-//        QRgb value;
-
-
-//        int scanlineOffset = 0;
-//        for (int y = 0; y < 480; ++y)
-//        {
-//            for (int x = 0; x < 640; ++x)
-//            {
-//                value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
-//                imageOut.setPixel(x, y, value/100.f);
-//            }
-//            scanlineOffset+=640;
-//        }
-
-//        QString s = QString::number(depthNum);
-//        QImageWriter writerQ("images/depth"+s+".bmp", "bmp");
-//        writerQ.write(imageOut);
-//        depthNum++;
-
-
-        ///this bit saves it as point clouds, we're going for .ply beacuse ascii
-        /// pros - it works
-        /// cons - it's slow, we could be write speed limited!
-
-        std::ofstream myfile;
-
-        std::string text = "cloud_";
-        std::string extension = ".ply";
-        text += std::to_string(frameNum);
-        text += extension;
-
-        myfile.open (text);
-        myfile << "ply\n";
-        myfile << "format ascii 1.0\n";
-        myfile << "obj_info num_cols 640\n";
-        myfile << "obj_info num_rows 480\n";
-        myfile << "element vertex 307200\n";
-        myfile << "property float x\n";
-        myfile << "property float y\n";
-        myfile << "property float z\n";
-        myfile << "property uchar red\n";
-        myfile << "property uchar green\n";
-        myfile << "property uchar blue\n";
-        myfile << "end_header\n";
-
-        QImage imageOut(640, 480, QImage::Format_RGB16);
-        QRgb value;
-
-        int scanlineOffset = 0;
-        for (int y = 0; y < 480; ++y)
-        {
-            for (int x = 0; x < 640; ++x)
-            {
-                value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
-                imageOut.setPixel(x, y, value);
-            }
-            scanlineOffset+=640*3;
-        }
-
-        QString s = QString::number(frameNum);
-        QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
-        writerQ.write(imageOut);
-
-        for (int i = 0; i < 480*640; ++i)
-        {
-
-            float f = 595.f;
-
-            if (depth[i] != 0) //ensures that points where no depth data is recorded are not saved to file
-            {
-                myfile << -((i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f) //x
-                       << " "
-                       << -((i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f) //y (x and y are minused in order to flip the output)
-                       << " "
-                       << depth[i]/1000.f //z
-                       << " "
-                       << +rgb[3*i+0] //r
-                       << " "
-                       << +rgb[3*i+1] //g
-                       << " "
-                       << +rgb[3*i+2] //b
-                       <<"\n";
-            }
-
-        }
-        myfile.close();
-        frameNum++;
-    }
-
-
-
-    if (recordBuffer == true)
-    {
-        for (int y = 0; y < 480; ++y)
-        {
-            for (int x = 0; x < 640; ++x)
-            {
-                //don't do this, it crashes the laptop... we probably need a timer - and to not do this all in the draw loop lol
-                //rgbSeq.push_back(rgb);
-
-
-            }
-        }
+        //multithreaded writer
+        std::async(recorder, rgb, depth, frameNum);
     }
 
 
@@ -268,14 +233,15 @@ void DrawGLScene()
 //    }
 
 
+    frameNum++;
 }
+
+
+
 
 
 void saveBuffer()
 {
-    //pass rgbd data here from array
-    //save as rgb and point cloud sequences
-
 
     //init qimage to put that data into
     QImage imageOut(640, 480, QImage::Format_RGB16);
@@ -351,6 +317,7 @@ void saveColour()
     writerQ.write(imageOut);
 
 }
+
 
 void keyPressed(unsigned char key, int x, int y)
 {
