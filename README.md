@@ -1,5 +1,7 @@
 # deepnect
 
+### Work In Progress ###
+
 Uses libfreenect, TinyEXR and QT (Optional image saving with QImage).
 
 Builds on the opengl cpp wrapper example from libfreenect!
