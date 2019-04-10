@@ -12,6 +12,8 @@
 #include <vec6.h>
 #include <future>
 
+#include <tinyexr.h>
+
 #include <QImage>
 #include <QImageWriter>
 
@@ -43,7 +45,8 @@ Vec6 rgbdImage[640][480];        //lets start making some sense with a 2D array 
 //std::vector<std::vector<Vec6>>(rgbSeq);
 std::vector<std::vector<uint8_t>> rgbSeq;
 
-
+int width = 640;
+int height = 480;
 
 
 //function that waits for new frame
@@ -51,8 +54,81 @@ std::vector<std::vector<uint8_t>> rgbSeq;
 //assign new thread to write each frame to file
 //could probably do with a cache or buffer of sorts
 
+
+
+//
+
+
+
 void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNum)
 {
+    //init tinyEXR
+    EXRHeader header;
+    InitEXRHeader(&header);
+
+    EXRImage image;
+    InitEXRImage(&image);
+
+    //set number of channels, and image sizes
+    image.num_channels = 4;
+
+    std::vector<float> images[4];
+    images[0].resize(width * height);
+    images[1].resize(width * height);
+    images[2].resize(width * height);
+    images[3].resize(width * height);
+
+    //place rgb data from image loader into the EXR image array (also convert byte to float)
+    for (int i = 0; i < width * height; i++) {
+      images[0][i] = rgb[3*i+0]*(1.f/255.f);
+      images[1][i] = rgb[3*i+1]*(1.f/255.f);
+      images[2][i] = rgb[3*i+2]*(1.f/255.f);
+      images[3][i] = depth[i]/1000.f;
+    }
+
+    //I guess this puts the RGB channels into contiguous memory, so it's one layer/image
+    float* image_ptr[4];
+    image_ptr[0] = &(images[2].at(0)); // B
+    image_ptr[1] = &(images[1].at(0)); // G
+    image_ptr[2] = &(images[0].at(0)); // R
+    image_ptr[3] = &(images[3].at(0)); // R
+
+    //set EXR image data
+    image.images = (unsigned char**)image_ptr;
+    image.width = width;
+    image.height = height;
+
+    //set EXR header data
+    header.num_channels = 4;
+    header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
+    // Must be BGR(A) order, since most of EXR viewers expect this channel order.
+    strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
+    strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
+    strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
+    strncpy(header.channels[3].name, "Z", 255); header.channels[3].name[strlen("Z")] = '\0';
+
+    header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+    header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+    for (int i = 0; i < header.num_channels; i++) {
+      header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
+      header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
+    }
+
+    //Save EXR plus prints
+    const char* err;
+    int ret = SaveEXRImageToFile(&image, &header, "example.exr", &err);
+    if (ret != TINYEXR_SUCCESS) {
+      fprintf(stderr, "Save EXR err: %s\n", err);
+    }
+    printf("Saved exr file. [ %d ] \n", frameNum);
+
+    //free memory
+    free(header.channels);
+    free(header.pixel_types);
+    free(header.requested_pixel_types);
+
+
+
 //    QImage imageOut(640, 480, QImage::Format_RGB16);
 //    QRgb value;
 
@@ -71,52 +147,55 @@ void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNu
 //    QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
 //    writerQ.write(imageOut);
 
+    //can we save to ofstream without writing file?
+    //see https://stackoverflow.com/questions/35890488/store-data-in-ofstream-without-opening-a-file
 
-    std::ofstream myfile;
+//    std::ofstream myfile;
 
-    std::string text = "points/cloud_";
-    std::string extension = ".ply";
-    text += std::to_string(frameNum);
-    text += extension;
+//    std::string text = "points/cloud_";
+//    std::string extension = ".ply";
+//    text += std::to_string(frameNum);
+//    text += extension;
 
-    myfile.open (text);
-    myfile << "ply\n";
-    myfile << "format ascii 1.0\n";
-    myfile << "obj_info num_cols 640\n";
-    myfile << "obj_info num_rows 480\n";
-    myfile << "element vertex 307200\n";
-    myfile << "property float x\n";
-    myfile << "property float y\n";
-    myfile << "property float z\n";
-    myfile << "property uchar red\n";
-    myfile << "property uchar green\n";
-    myfile << "property uchar blue\n";
-    myfile << "end_header\n";
+//    myfile.open (text);
+//    myfile << "ply\n";
+//    myfile << "format ascii 1.0\n";
+//    myfile << "obj_info num_cols 640\n";
+//    myfile << "obj_info num_rows 480\n";
+//    myfile << "element vertex 307200\n";
+//    myfile << "property float x\n";
+//    myfile << "property float y\n";
+//    myfile << "property float z\n";
+//    myfile << "property uchar red\n";
+//    myfile << "property uchar green\n";
+//    myfile << "property uchar blue\n";
+//    myfile << "end_header\n";
 
-    for (int i = 0; i < 480*640; ++i)
-    {
+//    for (int i = 0; i < 480*640; ++i)
+//    {
 
-        float f = 595.f;
+//        float f = 595.f;
 
-        if (depth[i] != 0) //ensures that points where no depth data is recorded are not saved to file
-        {
-            myfile << -((i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f) //x
-                   << " "
-                   << -((i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f) //y (x and y are minused in order to flip the output)
-                   << " "
-                   << depth[i]/1000.f //z
-                   << " "
-                   << +rgb[3*i+0] //r
-                   << " "
-                   << +rgb[3*i+1] //g
-                   << " "
-                   << +rgb[3*i+2] //b
-                   <<"\n";
-        }
+//        if (depth[i] != 0) //ensures that points where no depth data is recorded are not saved to file
+//        {
+//            myfile << -((i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f) //x
+//                   << " "
+//                   << -((i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f) //y (x and y are minused in order to flip the output)
+//                   << " "
+//                   << depth[i]/1000.f //z
+//                   << " "
+//                   << +rgb[3*i+0] //r
+//                   << " "
+//                   << +rgb[3*i+1] //g
+//                   << " "
+//                   << +rgb[3*i+2] //b
+//                   <<"\n";
+//        }
 
-    }
-    myfile.close();
+//    }
+//    myfile.close();
 
+    std::cout<< frameNum << '\n';
 }
 
 
@@ -193,47 +272,25 @@ void DrawGLScene()
     //end opengl
 
 
+//    if (device-> == true)
+//    {
+
+//    }
+
+
     if (record == true)
     {
         //multithreaded writer
         std::async(recorder, rgb, depth, frameNum);
+        frameNum++;
+
+        //the receiving function should probably add to the cache of frames and then when record is not true, save it once with a savebuffer flag
+        //leaving the actual file saving to be multithreaded
+
+        //but we should try not to do that here, as it's not fps limited
     }
 
 
-
-
-
-    ///this is too complicated
-
-
-//    //add if buffer record true:
-//    //use vec6 to dump data at 30 fps (requires timer) into lovely lil vec array
-//    //once complete require button press to run saveBuffer()
-
-//    if (recordBuffer == true)
-//    {
-//        float f = 595.f;
-//        int scanlineOffset = 0;
-//        for (int y = 0; y < 480; ++y)
-//        {
-//            for (int x = 0; x < 640; ++x)
-//            {
-//                rgbSeq[0].push_back(Vec6(+rgb[3*x+scanlineOffset],
-//                                      +rgb[3*x+1+scanlineOffset],
-//                                      +rgb[3*x+2+scanlineOffset], 0,0,0));
-
-
-////                rgbdImage[x][y].x = -(((x+scanlineOffset)%640 - (640-1)/2.f) * (depth[x+scanlineOffset]/1000.f) / f);
-////                rgbdImage[x][y].y = -(((x+scanlineOffset)/640 - (480-1)/2.f) * (depth[x+scanlineOffset]/1000.f) / f);
-////                rgbdImage[x][y].z = depth[x+scanlineOffset]/1000.f;
-//            }
-//            scanlineOffset+=640*3;
-//        }
-//        frameNum++;
-//    }
-
-
-    frameNum++;
 }
 
 

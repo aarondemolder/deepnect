@@ -22,10 +22,12 @@ isEqual(QT_MAJOR_VERSION, 5) {
         DEFINES +=QT5BUILD
 }
 
-SOURCES += deepnect.cpp
+SOURCES += deepnect.cpp \
+            tinyexr.cpp
 
 HEADERS += include/class_container.h \
-            include/vec6.h
+            include/vec6.h \
+            include/tinyexr.h
 
 INCLUDEPATH+= include \
                 /usr/include/libusb-1.0
