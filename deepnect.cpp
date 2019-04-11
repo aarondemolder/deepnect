@@ -116,7 +116,14 @@ void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNu
 
     //Save EXR plus prints
     const char* err;
-    int ret = SaveEXRImageToFile(&image, &header, "example.exr", &err);
+
+    std::string text = "images/combine_";
+    std::string extension = ".exr";
+    text += std::to_string(frameNum);
+    text += extension;
+    const char *cstr = text.c_str();
+
+    int ret = SaveEXRImageToFile(&image, &header, cstr, &err);
     if (ret != TINYEXR_SUCCESS) {
       fprintf(stderr, "Save EXR err: %s\n", err);
     }
