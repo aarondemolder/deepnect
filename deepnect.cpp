@@ -48,6 +48,8 @@ std::vector<std::vector<uint8_t>> rgbSeq;
 int width = 640;
 int height = 480;
 
+int frameCount = 0;
+
 
 //function that waits for new frame
 //once both rgb and depth are available, store them
@@ -62,6 +64,13 @@ int height = 480;
 
 void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNum)
 {
+
+    if (device->m_new_rgb_frame == true)
+    {
+        std::cout<< "new frame!\n";
+    }
+
+    ///SAVES EXR WITH RGB + ZDEPTH (Uses TinyEXR), there's not much point saving in Deep and having to implement full OpenEXR
     //init tinyEXR
     EXRHeader header;
     InitEXRHeader(&header);
@@ -83,15 +92,14 @@ void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNu
       images[0][i] = rgb[3*i+0]*(1.f/255.f);
       images[1][i] = rgb[3*i+1]*(1.f/255.f);
       images[2][i] = rgb[3*i+2]*(1.f/255.f);
-      images[3][i] = depth[i]/1000.f;
+      images[3][i] = depth[i]/1000.f; //we divide by 1000 to convert mm to m for the ZDepth
     }
 
-    //I guess this puts the RGB channels into contiguous memory, so it's one layer/image
     float* image_ptr[4];
     image_ptr[0] = &(images[2].at(0)); // B
     image_ptr[1] = &(images[1].at(0)); // G
     image_ptr[2] = &(images[0].at(0)); // R
-    image_ptr[3] = &(images[3].at(0)); // R
+    image_ptr[3] = &(images[3].at(0)); // Z
 
     //set EXR image data
     image.images = (unsigned char**)image_ptr;
@@ -135,7 +143,7 @@ void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNu
     free(header.requested_pixel_types);
 
 
-
+    ///SAVES RGB BMP (Uses QImage)
 //    QImage imageOut(640, 480, QImage::Format_RGB16);
 //    QRgb value;
 
@@ -154,6 +162,8 @@ void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNu
 //    QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
 //    writerQ.write(imageOut);
 
+
+    ///SAVES .PLY COLOUR POINT CLOUD (very hardware limited)
     //can we save to ofstream without writing file?
     //see https://stackoverflow.com/questions/35890488/store-data-in-ofstream-without-opening-a-file
 
@@ -202,7 +212,6 @@ void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNu
 //    }
 //    myfile.close();
 
-    std::cout<< frameNum << '\n';
 }
 
 
@@ -231,26 +240,26 @@ void DrawGLScene()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glPointSize(1.0f);
+//    glPointSize(1.0f);
 
-    glBegin(GL_POINTS);
+//    glBegin(GL_POINTS);
 
-    if (!color) glColor3ub(255, 255, 255);
-    for (int i = 0; i < 480*640; ++i)
-    {
-        if (color)
-            glColor3ub( rgb[3*i+0],    // R
-                        rgb[3*i+1],    // G
-                        rgb[3*i+2] );  // B
+//    if (!color) glColor3ub(255, 255, 255);
+//    for (int i = 0; i < 480*640; ++i)
+//    {
+//        if (color)
+//            glColor3ub( rgb[3*i+0],    // R
+//                        rgb[3*i+1],    // G
+//                        rgb[3*i+2] );  // B
 
-        float f = 595.f;
-        // Convert from image plane coordinates to world coordinates
-        glVertex3f( (i%640 - (640-1)/2.f) * depth[i] / f,  // X = (x - cx) * d / fx
-                    (i/640 - (480-1)/2.f) * depth[i] / f,  // Y = (y - cy) * d / fy
-                    depth[i] );                            // Z = d
-    }
+//        float f = 595.f;
+//        // Convert from image plane coordinates to world coordinates
+//        glVertex3f( (i%640 - (640-1)/2.f) * depth[i] / f,  // X = (x - cx) * d / fx
+//                    (i/640 - (480-1)/2.f) * depth[i] / f,  // Y = (y - cy) * d / fy
+//                    depth[i] );                            // Z = d
+//    }
 
-    glEnd();
+//    glEnd();
 
     // Draw the world coordinate frame
     glLineWidth(2.0f);
@@ -278,18 +287,28 @@ void DrawGLScene()
 
     //end opengl
 
-
-//    if (device-> == true)
+//    if (device->m_new_rgb_frame == true)
 //    {
-
+//        std::cout<< frameCount<< "new frame!\n";
+//        frameCount++;
 //    }
+//    std::cout<< frameNum << "draw\n";
+//    frameNum++;
 
 
     if (record == true)
     {
-        //multithreaded writer
-        std::async(recorder, rgb, depth, frameNum);
-        frameNum++;
+        //ensures we only record on a new frame, instead of every opengl draw
+        if (device->m_new_rgb_frame == true)
+        {
+            //push to our magic buffer first to prevent losing slowdown
+            //only then push buffer to writer in for loop with async
+
+            //multithreaded writer
+            std::async(recorder, rgb, depth, frameNum);
+            frameNum++;
+        }
+
 
         //the receiving function should probably add to the cache of frames and then when record is not true, save it once with a savebuffer flag
         //leaving the actual file saving to be multithreaded
@@ -303,7 +322,7 @@ void DrawGLScene()
 
 
 
-
+//WIP
 void saveBuffer()
 {
 
@@ -493,7 +512,7 @@ void idleGLScene()
     glutPostRedisplay();
 }
 
-
+//Update this
 void printInfo()
 {
     std::cout << "\nAvailable Controls:"              << std::endl;

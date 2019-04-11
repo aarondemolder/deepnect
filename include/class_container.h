@@ -134,6 +134,8 @@ private:
     Mutex m_depth_mutex;
     std::vector<uint8_t> m_buffer_video;
     std::vector<uint16_t> m_buffer_depth;
+
+public:
     bool m_new_rgb_frame;
     bool m_new_depth_frame;
 
