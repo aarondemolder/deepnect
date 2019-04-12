@@ -44,6 +44,7 @@ bool recordBuffer = false;
 Vec6 rgbdImage[640][480];        //lets start making some sense with a 2D array for our image data
 //std::vector<std::vector<Vec6>>(rgbSeq);
 std::vector<std::vector<uint8_t>> rgbSeq;
+std::vector<std::vector<uint16_t>> depthSeq;
 
 int width = 640;
 int height = 480;
@@ -60,15 +61,22 @@ int frameCount = 0;
 
 //
 
+//move this into draw loop - need to detect if buffer flag has been triggered, only then write, and then reset flag
+void frameBuffer(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNum)
+{
+    rgbSeq.push_back(rgb);
+    depthSeq.push_back(depth);
+
+    //output test values from buffer - seems to work
+//    std::vector<uint8_t> test = rgbSeq[frameNum];
+//    std::cout<< +test[0] << '\n';
+
+
+}
 
 
 void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNum)
 {
-
-    if (device->m_new_rgb_frame == true)
-    {
-        std::cout<< "new frame!\n";
-    }
 
     ///SAVES EXR WITH RGB + ZDEPTH (Uses TinyEXR), there's not much point saving in Deep and having to implement full OpenEXR
     //init tinyEXR
@@ -135,7 +143,7 @@ void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNu
     if (ret != TINYEXR_SUCCESS) {
       fprintf(stderr, "Save EXR err: %s\n", err);
     }
-    printf("Saved exr file. [ %d ] \n", frameNum);
+    //printf("Saved exr file. [ %d ] \n", frameNum);
 
     //free memory
     free(header.channels);
@@ -240,26 +248,26 @@ void DrawGLScene()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-//    glPointSize(1.0f);
+    glPointSize(1.0f);
 
-//    glBegin(GL_POINTS);
+    glBegin(GL_POINTS);
 
-//    if (!color) glColor3ub(255, 255, 255);
-//    for (int i = 0; i < 480*640; ++i)
-//    {
-//        if (color)
-//            glColor3ub( rgb[3*i+0],    // R
-//                        rgb[3*i+1],    // G
-//                        rgb[3*i+2] );  // B
+    if (!color) glColor3ub(255, 255, 255);
+    for (int i = 0; i < 480*640; ++i)
+    {
+        if (color)
+            glColor3ub( rgb[3*i+0],    // R
+                        rgb[3*i+1],    // G
+                        rgb[3*i+2] );  // B
 
-//        float f = 595.f;
-//        // Convert from image plane coordinates to world coordinates
-//        glVertex3f( (i%640 - (640-1)/2.f) * depth[i] / f,  // X = (x - cx) * d / fx
-//                    (i/640 - (480-1)/2.f) * depth[i] / f,  // Y = (y - cy) * d / fy
-//                    depth[i] );                            // Z = d
-//    }
+        float f = 595.f;
+        // Convert from image plane coordinates to world coordinates
+        glVertex3f( (i%640 - (640-1)/2.f) * depth[i] / f,  // X = (x - cx) * d / fx
+                    (i/640 - (480-1)/2.f) * depth[i] / f,  // Y = (y - cy) * d / fy
+                    depth[i] );                            // Z = d
+    }
 
-//    glEnd();
+    glEnd();
 
     // Draw the world coordinate frame
     glLineWidth(2.0f);
@@ -296,16 +304,20 @@ void DrawGLScene()
 //    frameNum++;
 
 
+
     if (record == true)
     {
         //ensures we only record on a new frame, instead of every opengl draw
         if (device->m_new_rgb_frame == true)
         {
+            //the previous depth frame will be pushed alongside the new RGB frame, is this okay?
+
             //push to our magic buffer first to prevent losing slowdown
             //only then push buffer to writer in for loop with async
 
             //multithreaded writer
-            std::async(recorder, rgb, depth, frameNum);
+            //std::async(recorder, rgb, depth, frameNum);
+            frameBuffer(rgb, depth, frameNum);
             frameNum++;
         }
 
@@ -315,7 +327,6 @@ void DrawGLScene()
 
         //but we should try not to do that here, as it's not fps limited
     }
-
 
 }
 
