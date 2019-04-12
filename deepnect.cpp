@@ -1,16 +1,14 @@
 //Base gl viewer taken from the libefreenect cpp wrapper example
 //Expanded with various saving functions for RGB and point cloud data sequences
-//
 
 #include <cstdlib>
 #include <iostream>
 #include <vector>
 #include <fstream>
-#include <libfreenect.hpp>
-
-#include <class_container.h>
-#include <vec6.h>
 #include <future>
+
+#include <libfreenect.hpp>
+#include <deepnect.h>
 
 #include <tinyexr.h>
 
@@ -22,40 +20,6 @@
 #else
 #include <GL/glut.h>
 #endif
-
-
-Freenect::Freenect freenect;
-MyFreenectDevice* device;
-
-
-//c style declarations should not be happening
-int window(0);                // Glut window identifier
-int mx = -1, my = -1;         // Prevous mouse coordinates
-float anglex = 0, angley = 0; // Panning angles
-float zoom = 1;               // Zoom factor
-bool color = true;            // Flag to indicate to use of color in the cloud
-
-int frameNum = 0;              //framecounter for filename output
-bool record = false;            //recordflag
-int depthNum = 0;               //framecounter for depth output
-bool recordDepth = false;       //recordflag for depth
-
-bool recordBuffer = false;
-Vec6 rgbdImage[640][480];        //lets start making some sense with a 2D array for our image data
-//std::vector<std::vector<Vec6>>(rgbSeq);
-std::vector<std::vector<uint8_t>> rgbSeq;
-std::vector<std::vector<uint16_t>> depthSeq;
-
-int width = 640;
-int height = 480;
-
-int frameCount = 0;
-
-bool bufferContent = false;
-bool exrToggle = true;
-bool bmpToggle = false;
-bool plyToggle = false;
-
 
 
 
@@ -86,7 +50,8 @@ void fileWriter(int frameWrite)
         images[3].resize(width * height);
 
         //place rgb data from image loader into the EXR image array (also convert byte to float)
-        for (int i = 0; i < width * height; i++) {
+        for (int i = 0; i < width * height; i++)
+        {
           images[0][i] = rgb[3*i+0]*(1.f/255.f);
           images[1][i] = rgb[3*i+1]*(1.f/255.f);
           images[2][i] = rgb[3*i+2]*(1.f/255.f);
@@ -115,7 +80,8 @@ void fileWriter(int frameWrite)
 
         header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
         header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-        for (int i = 0; i < header.num_channels; i++) {
+        for (int i = 0; i < header.num_channels; i++)
+        {
           header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
           header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
         }
@@ -167,8 +133,7 @@ void fileWriter(int frameWrite)
     }
 
 
-    ///SAVES .PLY COLOUR POINT CLOUD (very slow)
-
+    ///SAVES .PLY COLOUR POINT CLOUD
     if (plyToggle)
     {
         std::ofstream myfile;
@@ -216,23 +181,7 @@ void fileWriter(int frameWrite)
         myfile.close();
     }
 
-
 }
-
-
-
-void delay1()
-{
-    auto Start = std::chrono::high_resolution_clock::now();
-    while (1)
-    {
-        auto End = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> Elapsed = End - Start;
-        if (Elapsed.count() >= 1000.0)
-            break;
-    }
-}
-
 
 
 void DrawGLScene()
@@ -267,6 +216,7 @@ void DrawGLScene()
     glEnd();
 
 
+    //start recording
     if (record)
     {
         // Draw the world coordinate but in red when recording
@@ -289,6 +239,7 @@ void DrawGLScene()
             //the previous depth frame will be pushed alongside the new RGB frame, is this okay?
             //we should probably use the closest frame, but the example uses the previous - okay for things that don't move fast
 
+            //push frames to vector
             rgbSeq.push_back(rgb);
             depthSeq.push_back(depth);
 
@@ -297,23 +248,29 @@ void DrawGLScene()
         }
     }
 
+    //once recording is finished, and if bufferContent exists, write files
     if (!record && bufferContent)
     {
-        std::cout<< "Saving Recording Buffer\n";
+        std::cout<< "Saving Recording Buffer...\n";
+
         for (int i=0; i < frameNum; ++i)
         {
-            //multithreaded file saving is faster
+            //multithreaded file saving is faster, probably
             //fileWriter(i);
             std::async(fileWriter, i);
         }
         std::cout<< "Done!\n";
+
+        //clear the recording buffer when we're done and reset the bufferContent flag
         bufferContent = !bufferContent;
         rgbSeq.clear();
         depthSeq.clear();
 
         frameNum =0;
 
-        std::cout<< "Buffer Cleared\n";
+        if (exrToggle) std::cout<< "Saved as EXR\n";
+        if (bmpToggle) std::cout<< "Saved as BMP\n";
+        if (plyToggle) std::cout<< "Saved as PLY\n";
     }
 
     if (!record)
@@ -350,7 +307,7 @@ void DrawGLScene()
 
 
 
-////saves single depth frame but as funky rgb
+////saves single depth frame but as funky rgb (Uses QImage)
 //void saveDepth()
 //{
 //    static std::vector<uint16_t> depth(640*480);
@@ -376,7 +333,7 @@ void DrawGLScene()
 
 //}
 
-////save single RGB frame
+////save single RGB frame (Uses QImage)
 //void saveColour()
 //{
 //    //create array for rgb channels for img and get true values from kinect
@@ -405,6 +362,61 @@ void DrawGLScene()
 
 //}
 
+void recordToggle()
+{
+    ///this would cause issue with first recording, so whatever
+//    if (!exrToggle && !bmpToggle && !plyToggle)
+//    {
+//        std::cout<< "No File Saving Specified. Cannot Record.\n";
+//    }
+//    else
+//    {
+        std::cout<< "Recording to buffer...\n";
+        record = !record;
+//    }
+}
+
+void exrToggleFunc()
+{
+    exrToggle = !exrToggle;
+
+    if (exrToggle)
+    {
+        std::cout<< "EXR Saving Enabled\n";
+    }
+    else
+    {
+        std::cout<< "EXR Saving Disabled\n";
+    }
+}
+
+void bmpToggleFunc()
+{
+    bmpToggle = !bmpToggle;
+
+    if (bmpToggle)
+    {
+        std::cout<< "BMP Saving Enabled\n";
+    }
+    else
+    {
+        std::cout<< "BMP Saving Disabled\n";
+    }
+}
+
+void plyToggleFunc()
+{
+    plyToggle = !plyToggle;
+
+    if (plyToggle)
+    {
+        std::cout<< "PLY Saving Enabled\n";
+    }
+    else
+    {
+        std::cout<< "PLY Saving Disabled\n";
+    }
+}
 
 
 
@@ -417,26 +429,25 @@ void keyPressed(unsigned char key, int x, int y)
             color = !color;
         break;
 
-    case 'R':
-    case 'r':
-        //toggle bool with flip
-        record = !record;
-    break;
+        case 'R':
+        case 'r':
+            recordToggle();
+        break;
 
-    case 'E':
-    case 'e':
-        exrToggle = !exrToggle;
-    break;
+        case 'E':
+        case 'e':
+            exrToggleFunc();
+        break;
 
-    case 'B':
-    case 'b':
-        bmpToggle = !bmpToggle;
-    break;
+        case 'B':
+        case 'b':
+            bmpToggleFunc();
+        break;
 
-    case 'P':
-    case 'p':
-        plyToggle = !plyToggle;
-    break;
+        case 'P':
+        case 'p':
+            plyToggleFunc();
+        break;
 
 
         case  'Q':
@@ -446,7 +457,6 @@ void keyPressed(unsigned char key, int x, int y)
             device->stopDepth();
             device->stopVideo();
             exit(0);
-
 
     }
 }
@@ -514,10 +524,14 @@ void printInfo()
 {
     std::cout << "\nAvailable Controls:"              << std::endl;
     std::cout << "==================="                << std::endl;
-    std::cout << "Rotate       :   Mouse Left Button" << std::endl;
-    std::cout << "Zoom         :   Mouse Wheel"       << std::endl;
-    std::cout << "Toggle Color :   C"                 << std::endl;
-    std::cout << "Quit         :   Q or Esc\n"        << std::endl;
+    std::cout << "Rotate            :   Mouse Left Button" << std::endl;
+    std::cout << "Zoom              :   Mouse Wheel"       << std::endl;
+    std::cout << "Toggle Color      :   C"                 << std::endl;
+    std::cout << "Record            :   R"                 << std::endl;
+    std::cout << "Toggle EXR Saving :   E"                 << std::endl;
+    std::cout << "Toggle BMP Saving :   B"                 << std::endl;
+    std::cout << "Toggle PLY Saving :   P"                 << std::endl;
+    std::cout << "Quit              :   Q or Esc\n"        << std::endl;
 }
 
 

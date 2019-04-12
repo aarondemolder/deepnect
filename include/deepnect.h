@@ -25,8 +25,8 @@
  */
 
 
-#ifndef CLASS_CONTAINER_H
-#define CLASS_CONTAINER_H
+#ifndef DEEPNECT_H
+#define DEEPNECT_H
 
 #include <cstdlib>
 #include <iostream>
@@ -139,7 +139,32 @@ public:
     bool m_new_rgb_frame;
     bool m_new_depth_frame;
 
+
 };
 
+Freenect::Freenect freenect;
+MyFreenectDevice* device;
 
-#endif // CLASS_CONTAINER_H
+int window(0);                // Glut window identifier
+int mx = -1, my = -1;         // Prevous mouse coordinates
+float anglex = 0, angley = 0; // Panning angles
+float zoom = 1;               // Zoom factor
+bool color = true;            // Flag to indicate to use of color in the cloud
+
+
+bool record = false;            //recordflag
+
+std::vector<std::vector<uint8_t>> rgbSeq;   //Colour frame buffer
+std::vector<std::vector<uint16_t>> depthSeq;    //Depth frame buffer
+
+int width = 640;    //image width
+int height = 480;   //image height
+
+int frameNum = 0;              //framecounter for filename output
+
+bool bufferContent = false;     //buffer content flag
+bool exrToggle = true;          //exr saving flag (true by default)
+bool bmpToggle = false;         //bmp saving flag
+bool plyToggle = false;         //point cloud saving flag
+
+#endif // DEEPNECT_H
