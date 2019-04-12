@@ -51,32 +51,16 @@ int height = 480;
 
 int frameCount = 0;
 
-
-//function that waits for new frame
-//once both rgb and depth are available, store them
-//assign new thread to write each frame to file
-//could probably do with a cache or buffer of sorts
+bool bufferContent = false;
 
 
 
-//
 
-//move this into draw loop - need to detect if buffer flag has been triggered, only then write, and then reset flag
-void frameBuffer(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNum)
+void fileWriter(int frameWrite)
 {
-    rgbSeq.push_back(rgb);
-    depthSeq.push_back(depth);
-
-    //output test values from buffer - seems to work
-//    std::vector<uint8_t> test = rgbSeq[frameNum];
-//    std::cout<< +test[0] << '\n';
-
-
-}
-
-
-void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNum)
-{
+    std::cout<<"Saving frame: " << frameWrite << " of "<< frameNum<<'\n';
+    std::vector<uint8_t> rgb = rgbSeq[frameWrite];
+    std::vector<uint16_t> depth = depthSeq[frameWrite];
 
     ///SAVES EXR WITH RGB + ZDEPTH (Uses TinyEXR), there's not much point saving in Deep and having to implement full OpenEXR
     //init tinyEXR
@@ -135,7 +119,7 @@ void recorder(std::vector<uint8_t> rgb, std::vector<uint16_t> depth, int frameNu
 
     std::string text = "images/combine_";
     std::string extension = ".exr";
-    text += std::to_string(frameNum);
+    text += std::to_string(frameWrite);
     text += extension;
     const char *cstr = text.c_str();
 
@@ -295,66 +279,43 @@ void DrawGLScene()
 
     //end opengl
 
-//    if (device->m_new_rgb_frame == true)
-//    {
-//        std::cout<< frameCount<< "new frame!\n";
-//        frameCount++;
-//    }
-//    std::cout<< frameNum << "draw\n";
-//    frameNum++;
 
 
-
-    if (record == true)
+    if (record)
     {
         //ensures we only record on a new frame, instead of every opengl draw
         if (device->m_new_rgb_frame == true)
         {
             //the previous depth frame will be pushed alongside the new RGB frame, is this okay?
+            //we should probably use the closest frame, but the example uses the previous - okay for things that don't move fast
 
-            //push to our magic buffer first to prevent losing slowdown
-            //only then push buffer to writer in for loop with async
+            rgbSeq.push_back(rgb);
+            depthSeq.push_back(depth);
 
-            //multithreaded writer
-            //std::async(recorder, rgb, depth, frameNum);
-            frameBuffer(rgb, depth, frameNum);
             frameNum++;
+            bufferContent = true;
         }
-
-
-        //the receiving function should probably add to the cache of frames and then when record is not true, save it once with a savebuffer flag
-        //leaving the actual file saving to be multithreaded
-
-        //but we should try not to do that here, as it's not fps limited
     }
-
-}
-
-
-
-
-//WIP
-void saveBuffer()
-{
-
-    //init qimage to put that data into
-    QImage imageOut(640, 480, QImage::Format_RGB16);
-    QRgb value;
-
-    int scanlineOffset = 0;
-    for (int y = 0; y < 480; ++y)
+    if (!record && bufferContent)
     {
-        for (int x = 0; x < 640; ++x)
+        std::cout<< "Saving Recording Buffer\n";
+        for (int i=0; i < frameNum; ++i)
         {
-            value = qRgb(rgbSeq[0][3*x+scanlineOffset],rgbSeq[0][3*x+1+scanlineOffset],rgbSeq[0][3*x+2+scanlineOffset]);
-            imageOut.setPixel(x, y, value);
+            std::async(fileWriter, i);
         }
-        scanlineOffset+=640*3;
+        std::cout<< "Done!\n";
+        bufferContent = !bufferContent;
+        rgbSeq.clear();
+        depthSeq.clear();
+
+        frameNum =0;
+
+        std::cout<< "Buffer Cleared\n";
     }
 
-    QImageWriter writerQ("outimage.bmp", "bmp");
-    writerQ.write(imageOut);
 }
+
+
 
 
 //saves single depth frame but as funky rgb
@@ -448,10 +409,6 @@ void keyPressed(unsigned char key, int x, int y)
         recordBuffer = !recordBuffer;
     break;
 
-    case 'V':
-    case 'v':
-        saveBuffer();
-    break;
 
         case  'Q':
         case  'q':
