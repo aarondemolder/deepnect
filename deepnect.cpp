@@ -52,6 +52,9 @@ int height = 480;
 int frameCount = 0;
 
 bool bufferContent = false;
+bool exrToggle = true;
+bool bmpToggle = false;
+bool plyToggle = false;
 
 
 
@@ -59,150 +62,160 @@ bool bufferContent = false;
 void fileWriter(int frameWrite)
 {
     std::cout<<"Saving frame: " << frameWrite << " of "<< frameNum<<'\n';
+
     std::vector<uint8_t> rgb = rgbSeq[frameWrite];
     std::vector<uint16_t> depth = depthSeq[frameWrite];
 
-    ///SAVES EXR WITH RGB + ZDEPTH (Uses TinyEXR), there's not much point saving in Deep and having to implement full OpenEXR
-    //init tinyEXR
-    EXRHeader header;
-    InitEXRHeader(&header);
+    ///SAVES EXR WITH RGB + ZDEPTH (Uses TinyEXR), there's not much point saving in Deep with just depth per pixel and having to implement full OpenEXR
+    if (exrToggle)
+    {
+        //init tinyEXR
+        EXRHeader header;
+        InitEXRHeader(&header);
 
-    EXRImage image;
-    InitEXRImage(&image);
+        EXRImage image;
+        InitEXRImage(&image);
 
-    //set number of channels, and image sizes
-    image.num_channels = 4;
+        //set number of channels, and image sizes
+        image.num_channels = 4;
 
-    std::vector<float> images[4];
-    images[0].resize(width * height);
-    images[1].resize(width * height);
-    images[2].resize(width * height);
-    images[3].resize(width * height);
+        std::vector<float> images[4];
+        images[0].resize(width * height);
+        images[1].resize(width * height);
+        images[2].resize(width * height);
+        images[3].resize(width * height);
 
-    //place rgb data from image loader into the EXR image array (also convert byte to float)
-    for (int i = 0; i < width * height; i++) {
-      images[0][i] = rgb[3*i+0]*(1.f/255.f);
-      images[1][i] = rgb[3*i+1]*(1.f/255.f);
-      images[2][i] = rgb[3*i+2]*(1.f/255.f);
-      images[3][i] = depth[i]/1000.f; //we divide by 1000 to convert mm to m for the ZDepth
+        //place rgb data from image loader into the EXR image array (also convert byte to float)
+        for (int i = 0; i < width * height; i++) {
+          images[0][i] = rgb[3*i+0]*(1.f/255.f);
+          images[1][i] = rgb[3*i+1]*(1.f/255.f);
+          images[2][i] = rgb[3*i+2]*(1.f/255.f);
+          images[3][i] = depth[i]/1000.f; //we divide by 1000 to convert mm to m for the ZDepth
+        }
+
+        float* image_ptr[4];
+        image_ptr[0] = &(images[2].at(0)); // B
+        image_ptr[1] = &(images[1].at(0)); // G
+        image_ptr[2] = &(images[0].at(0)); // R
+        image_ptr[3] = &(images[3].at(0)); // Z
+
+        //set EXR image data
+        image.images = (unsigned char**)image_ptr;
+        image.width = width;
+        image.height = height;
+
+        //set EXR header data
+        header.num_channels = 4;
+        header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
+        // Must be BGR(A) order, since most of EXR viewers expect this channel order.
+        strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
+        strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
+        strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
+        strncpy(header.channels[3].name, "Z", 255); header.channels[3].name[strlen("Z")] = '\0';
+
+        header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+        header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+        for (int i = 0; i < header.num_channels; i++) {
+          header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
+          header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
+        }
+
+        //Save EXR plus prints
+        const char* err;
+
+        std::string text = "images/combine_";
+        std::string extension = ".exr";
+        text += std::to_string(frameWrite);
+        text += extension;
+        const char *cstr = text.c_str();
+
+        int ret = SaveEXRImageToFile(&image, &header, cstr, &err);
+        if (ret != TINYEXR_SUCCESS) {
+          fprintf(stderr, "Save EXR err: %s\n", err);
+        }
+        //printf("Saved exr file. [ %d ] \n", frameNum);
+
+        //free memory
+        free(header.channels);
+        free(header.pixel_types);
+        free(header.requested_pixel_types);
     }
 
-    float* image_ptr[4];
-    image_ptr[0] = &(images[2].at(0)); // B
-    image_ptr[1] = &(images[1].at(0)); // G
-    image_ptr[2] = &(images[0].at(0)); // R
-    image_ptr[3] = &(images[3].at(0)); // Z
-
-    //set EXR image data
-    image.images = (unsigned char**)image_ptr;
-    image.width = width;
-    image.height = height;
-
-    //set EXR header data
-    header.num_channels = 4;
-    header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-    // Must be BGR(A) order, since most of EXR viewers expect this channel order.
-    strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
-    strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
-    strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
-    strncpy(header.channels[3].name, "Z", 255); header.channels[3].name[strlen("Z")] = '\0';
-
-    header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-    header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-    for (int i = 0; i < header.num_channels; i++) {
-      header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-      header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-    }
-
-    //Save EXR plus prints
-    const char* err;
-
-    std::string text = "images/combine_";
-    std::string extension = ".exr";
-    text += std::to_string(frameWrite);
-    text += extension;
-    const char *cstr = text.c_str();
-
-    int ret = SaveEXRImageToFile(&image, &header, cstr, &err);
-    if (ret != TINYEXR_SUCCESS) {
-      fprintf(stderr, "Save EXR err: %s\n", err);
-    }
-    //printf("Saved exr file. [ %d ] \n", frameNum);
-
-    //free memory
-    free(header.channels);
-    free(header.pixel_types);
-    free(header.requested_pixel_types);
 
 
     ///SAVES RGB BMP (Uses QImage)
-//    QImage imageOut(640, 480, QImage::Format_RGB16);
-//    QRgb value;
+    /// Comment this if statement out if you wish to compile without Qt
+    if (bmpToggle)
+    {
+        QImage imageOut(640, 480, QImage::Format_RGB16);
+        QRgb value;
 
-//    int scanlineOffset = 0;
-//    for (int y = 0; y < 480; ++y)
-//    {
-//        for (int x = 0; x < 640; ++x)
-//        {
-//            value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
-//            imageOut.setPixel(x, y, value);
-//        }
-//        scanlineOffset+=640*3;
-//    }
+        int scanlineOffset = 0;
+        for (int y = 0; y < 480; ++y)
+        {
+            for (int x = 0; x < 640; ++x)
+            {
+                value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
+                imageOut.setPixel(x, y, value);
+            }
+            scanlineOffset+=640*3;
+        }
 
-//    QString s = QString::number(frameNum);
-//    QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
-//    writerQ.write(imageOut);
+        QString s = QString::number(frameWrite);
+        QImageWriter writerQ("images/rgb"+s+".bmp", "bmp");
+        writerQ.write(imageOut);
+    }
 
 
-    ///SAVES .PLY COLOUR POINT CLOUD (very hardware limited)
-    //can we save to ofstream without writing file?
-    //see https://stackoverflow.com/questions/35890488/store-data-in-ofstream-without-opening-a-file
+    ///SAVES .PLY COLOUR POINT CLOUD (very slow)
 
-//    std::ofstream myfile;
+    if (plyToggle)
+    {
+        std::ofstream myfile;
 
-//    std::string text = "points/cloud_";
-//    std::string extension = ".ply";
-//    text += std::to_string(frameNum);
-//    text += extension;
+        std::string text2 = "points/cloud_";
+        std::string extension2 = ".ply";
+        text2 += std::to_string(frameWrite);
+        text2 += extension2;
 
-//    myfile.open (text);
-//    myfile << "ply\n";
-//    myfile << "format ascii 1.0\n";
-//    myfile << "obj_info num_cols 640\n";
-//    myfile << "obj_info num_rows 480\n";
-//    myfile << "element vertex 307200\n";
-//    myfile << "property float x\n";
-//    myfile << "property float y\n";
-//    myfile << "property float z\n";
-//    myfile << "property uchar red\n";
-//    myfile << "property uchar green\n";
-//    myfile << "property uchar blue\n";
-//    myfile << "end_header\n";
+        myfile.open (text2);
+        myfile << "ply\n";
+        myfile << "format ascii 1.0\n";
+        myfile << "obj_info num_cols 640\n";
+        myfile << "obj_info num_rows 480\n";
+        myfile << "element vertex 307200\n";
+        myfile << "property float x\n";
+        myfile << "property float y\n";
+        myfile << "property float z\n";
+        myfile << "property uchar red\n";
+        myfile << "property uchar green\n";
+        myfile << "property uchar blue\n";
+        myfile << "end_header\n";
 
-//    for (int i = 0; i < 480*640; ++i)
-//    {
+        for (int i = 0; i < 480*640; ++i)
+        {
 
-//        float f = 595.f;
+            float f = 595.f;
+            if (depth[i] != 0) //ensures that points where depth data is 0 are not saved to file
+            {
+                myfile << -((i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f) //x
+                       << " "
+                       << -((i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f) //y (x and y are minused in order to flip the output)
+                       << " "
+                       << depth[i]/1000.f //z
+                       << " "
+                       << +rgb[3*i+0] //r
+                       << " "
+                       << +rgb[3*i+1] //g
+                       << " "
+                       << +rgb[3*i+2] //b
+                       <<"\n";
+            }
 
-//        if (depth[i] != 0) //ensures that points where no depth data is recorded are not saved to file
-//        {
-//            myfile << -((i%640 - (640-1)/2.f) * (depth[i]/1000.f) / f) //x
-//                   << " "
-//                   << -((i/640 - (480-1)/2.f) * (depth[i]/1000.f) / f) //y (x and y are minused in order to flip the output)
-//                   << " "
-//                   << depth[i]/1000.f //z
-//                   << " "
-//                   << +rgb[3*i+0] //r
-//                   << " "
-//                   << +rgb[3*i+1] //g
-//                   << " "
-//                   << +rgb[3*i+2] //b
-//                   <<"\n";
-//        }
+        }
+        myfile.close();
+    }
 
-//    }
-//    myfile.close();
 
 }
 
@@ -253,36 +266,23 @@ void DrawGLScene()
 
     glEnd();
 
-    // Draw the world coordinate frame
-    glLineWidth(2.0f);
-    glBegin(GL_LINES);
-    glColor3ub(255, 0, 0);  // X-axis
-    glVertex3f(  0, 0, 0);
-    glVertex3f( 50, 0, 0);
-    glColor3ub(0, 255, 0);  // Y-axis
-    glVertex3f(0,   0, 0);
-    glVertex3f(0,  50, 0);
-    glColor3ub(0, 0, 255);  // Z-axis
-    glVertex3f(0, 0,   0);
-    glVertex3f(0, 0,  50);
-    glEnd();
-
-    // Place the camera
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glScalef(zoom, zoom, 1);
-    gluLookAt( -7*anglex, -7*angley, -1000.0,
-                     0.0,       0.0,  2000.0,
-                     0.0,      -1.0,     0.0 );
-
-    glutSwapBuffers();
-
-    //end opengl
-
-
 
     if (record)
     {
+        // Draw the world coordinate but in red when recording
+        glLineWidth(2.0f);
+        glBegin(GL_LINES);
+        glColor3ub(255, 0, 0);  // X-axis
+        glVertex3f(  0, 0, 0);
+        glVertex3f( 50, 0, 0);
+        glColor3ub(255, 0, 0);  // Y-axis
+        glVertex3f(0,   0, 0);
+        glVertex3f(0,  50, 0);
+        glColor3ub(255, 0, 0);  // Z-axis
+        glVertex3f(0, 0,   0);
+        glVertex3f(0, 0,  50);
+        glEnd();
+
         //ensures we only record on a new frame, instead of every opengl draw
         if (device->m_new_rgb_frame == true)
         {
@@ -296,11 +296,14 @@ void DrawGLScene()
             bufferContent = true;
         }
     }
+
     if (!record && bufferContent)
     {
         std::cout<< "Saving Recording Buffer\n";
         for (int i=0; i < frameNum; ++i)
         {
+            //multithreaded file saving is faster
+            //fileWriter(i);
             std::async(fileWriter, i);
         }
         std::cout<< "Done!\n";
@@ -313,65 +316,96 @@ void DrawGLScene()
         std::cout<< "Buffer Cleared\n";
     }
 
-}
-
-
-
-
-//saves single depth frame but as funky rgb
-void saveDepth()
-{
-    static std::vector<uint16_t> depth(640*480);
-    device->getDepth(depth);
-
-    QImage imageOut(640, 480, QImage::Format_RGB32);
-    QRgb value;
-
-    int scanlineOffset = 0;
-    for (int y = 0; y < 480; ++y)
+    if (!record)
     {
-        for (int x = 0; x < 640; ++x)
-        {
-            value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
-            imageOut.setPixel(x, y, value/100.f);
-        }
-        //std::cout<<"\n";
-        scanlineOffset+=640;
+        // Draw the world coordinate frame
+        glLineWidth(2.0f);
+        glBegin(GL_LINES);
+        glColor3ub(255, 0, 0);  // X-axis
+        glVertex3f(  0, 0, 0);
+        glVertex3f( 50, 0, 0);
+        glColor3ub(0, 255, 0);  // Y-axis
+        glVertex3f(0,   0, 0);
+        glVertex3f(0,  50, 0);
+        glColor3ub(0, 0, 255);  // Z-axis
+        glVertex3f(0, 0,   0);
+        glVertex3f(0, 0,  50);
+        glEnd();
     }
 
-    QImageWriter writerQ("outimage_depth.bmp", "bmp");
-    writerQ.write(imageOut);
+
+
+    // Place the camera
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glScalef(zoom, zoom, 1);
+    gluLookAt( -7*anglex, -7*angley, -1000.0,
+                     0.0,       0.0,  2000.0,
+                     0.0,      -1.0,     0.0 );
+
+    glutSwapBuffers();
 
 }
 
-//save single RGB frame
-void saveColour()
-{
-    //create array for rgb channels for img and get true values from kinect
-    static std::vector<uint8_t> rgb(640*480*3);
-    device->getRGB(rgb);
 
-    //init qimage to put that data into
-    QImage imageOut(640, 480, QImage::Format_RGB16);
-    QRgb value;
 
-    //offset is for splitting the 1D pixel array into 640px widths
-    //then we put everything into the correct x,y position for the image writer
-    int scanlineOffset = 0;
-    for (int y = 0; y < 480; ++y)
-    {
-        for (int x = 0; x < 640; ++x)
-        {
-            value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
-            imageOut.setPixel(x, y, value);
-        }
-        scanlineOffset+=640*3;
-    }
 
-    QImageWriter writerQ("outimage.bmp", "bmp");
-    writerQ.write(imageOut);
+////saves single depth frame but as funky rgb
+//void saveDepth()
+//{
+//    static std::vector<uint16_t> depth(640*480);
+//    device->getDepth(depth);
 
-}
+//    QImage imageOut(640, 480, QImage::Format_RGB32);
+//    QRgb value;
+
+//    int scanlineOffset = 0;
+//    for (int y = 0; y < 480; ++y)
+//    {
+//        for (int x = 0; x < 640; ++x)
+//        {
+//            value = qRgb(depth[x+scanlineOffset],depth[x+1+scanlineOffset],depth[x+2+scanlineOffset]);
+//            imageOut.setPixel(x, y, value/100.f);
+//        }
+//        //std::cout<<"\n";
+//        scanlineOffset+=640;
+//    }
+
+//    QImageWriter writerQ("outimage_depth.bmp", "bmp");
+//    writerQ.write(imageOut);
+
+//}
+
+////save single RGB frame
+//void saveColour()
+//{
+//    //create array for rgb channels for img and get true values from kinect
+//    static std::vector<uint8_t> rgb(640*480*3);
+//    device->getRGB(rgb);
+
+//    //init qimage to put that data into
+//    QImage imageOut(640, 480, QImage::Format_RGB16);
+//    QRgb value;
+
+//    //offset is for splitting the 1D pixel array into 640px widths
+//    //then we put everything into the correct x,y position for the image writer
+//    int scanlineOffset = 0;
+//    for (int y = 0; y < 480; ++y)
+//    {
+//        for (int x = 0; x < 640; ++x)
+//        {
+//            value = qRgb(rgb[3*x+scanlineOffset],rgb[3*x+1+scanlineOffset],rgb[3*x+2+scanlineOffset]);
+//            imageOut.setPixel(x, y, value);
+//        }
+//        scanlineOffset+=640*3;
+//    }
+
+//    QImageWriter writerQ("outimage.bmp", "bmp");
+//    writerQ.write(imageOut);
+
+//}
+
+
 
 
 void keyPressed(unsigned char key, int x, int y)
@@ -383,30 +417,25 @@ void keyPressed(unsigned char key, int x, int y)
             color = !color;
         break;
 
-    case 'S':
-    case 's':
-        saveColour();
-    break;
-
-    case 'D':
-    case 'd':
-        saveDepth();
-    break;
-
     case 'R':
     case 'r':
         //toggle bool with flip
         record = !record;
     break;
 
-    case 'P':
-    case 'p':
-        recordDepth = !recordDepth;
+    case 'E':
+    case 'e':
+        exrToggle = !exrToggle;
     break;
 
     case 'B':
     case 'b':
-        recordBuffer = !recordBuffer;
+        bmpToggle = !bmpToggle;
+    break;
+
+    case 'P':
+    case 'p':
+        plyToggle = !plyToggle;
     break;
 
 
