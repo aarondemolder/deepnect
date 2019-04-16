@@ -207,10 +207,16 @@ void DrawGLScene()
                         rgb[3*i+2] );  // B
 
         float f = 595.f;
-        // Convert from image plane coordinates to world coordinates
-        glVertex3f( (i%640 - (640-1)/2.f) * depth[i] / f,  // X = (x - cx) * d / fx
-                    (i/640 - (480-1)/2.f) * depth[i] / f,  // Y = (y - cy) * d / fy
-                    depth[i] );                            // Z = d
+
+        //don't draw zero value points
+        if (depth[i] != 0)
+        {
+            // Convert from image plane coordinates to world coordinates
+            glVertex3f( (i%640 - (640-1)/2.f) * depth[i] / f,  // X = (x - cx) * d / fx
+                        (i/640 - (480-1)/2.f) * depth[i] / f,  // Y = (y - cy) * d / fy
+                        depth[i] );                            // Z = d
+        }
+
     }
 
     glEnd();
