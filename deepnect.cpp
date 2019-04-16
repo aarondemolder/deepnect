@@ -21,7 +21,14 @@
 #include <GL/glut.h>
 #endif
 
+//lets make something that fills in holes in the point cloud
+//void pointFiller()
+//{
+//    std::vector<uint16_t> depth;
+//    device->getDepth(depth);
+//}
 
+int pMarker =0;
 
 void fileWriter(int frameWrite)
 {
@@ -29,6 +36,56 @@ void fileWriter(int frameWrite)
 
     std::vector<uint8_t> rgb = rgbSeq[frameWrite];
     std::vector<uint16_t> depth = depthSeq[frameWrite];
+
+
+
+
+
+    //replaces zero values with values of 4000
+    //std::replace (depth.begin(), depth.end(), 0, 4000);
+
+    for (int p = 0; p < 640*480; ++p)
+    {
+        if (depth[p] != 0 )
+        {
+            pMarker = p;
+            break;
+        }
+    }
+    std::cout<< pMarker << '\n';
+
+    for (int p = pMarker; p < 640*480; ++p)
+    {
+        if (depth[p] == 0 )
+        {
+            pMarker = p;
+            break;
+        }
+    }
+    std::cout<< pMarker << '\n';
+
+    int pBegin = pMarker;
+
+    for (int p = pMarker; p < 640*480; ++p)
+    {
+        if (depth[p] != 0 )
+        {
+            pMarker = p;
+            break;
+        }
+    }
+    std::cout<< pMarker << '\n';
+
+    int pEnd = pMarker;
+
+//    for (int p = pBegin; p < pEnd; ++p)
+//    {
+//        depth[p] = depth[p] + ((depth[pBegin]-depth[pEnd])/(pBegin-pEnd));
+//    }
+
+
+
+
 
     ///SAVES EXR WITH RGB + ZDEPTH (Uses TinyEXR), there's not much point saving in Deep with just depth per pixel and having to implement full OpenEXR
     if (exrToggle)
@@ -192,6 +249,7 @@ void DrawGLScene()
     device->getRGB(rgb);
     device->getDepth(depth);
 
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glPointSize(1.0f);
@@ -207,6 +265,27 @@ void DrawGLScene()
                         rgb[3*i+2] );  // B
 
         float f = 595.f;
+
+        //fill gaps
+
+        //does a great job of filling small gaps, but where values *should* be zero (like windows)
+//        //and for larger gaps it goes a bit jank
+//        if (depth[i] == 0)
+//        {
+//            for (int x =0; x < 200; ++x)
+//            {
+//                if (depth[i+x] != 0)
+//                {
+//                    depth[i] = depth[i+x];
+//                    break;
+//                }
+
+//            }
+//            //depth[i] = depth[i+1];
+//        }
+
+
+        //end fill gaps
 
         //don't draw zero value points
         if (depth[i] != 0)
@@ -244,6 +323,7 @@ void DrawGLScene()
         {
             //the previous depth frame will be pushed alongside the new RGB frame, is this okay?
             //we should probably use the closest frame, but the example uses the previous - okay for things that don't move fast
+            //these are out of sync anyway
 
             //push frames to vector
             rgbSeq.push_back(rgb);

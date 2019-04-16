@@ -136,8 +136,8 @@ private:
     std::vector<uint16_t> m_buffer_depth;
 
 public:
-    bool m_new_rgb_frame;
-    bool m_new_depth_frame;
+    bool m_new_rgb_frame;       //new rgb frame flag
+    bool m_new_depth_frame;     //new depth frame flag
 
 
 };
