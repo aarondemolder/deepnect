@@ -29,8 +29,6 @@ void fileWriter(int frameWrite)
     std::vector<uint8_t> rgb = rgbSeq[frameWrite];
     std::vector<uint16_t> depth = depthSeq[frameWrite];
 
-
-
     ///SAVES EXR WITH RGB + ZDEPTH (Uses TinyEXR), there's not much point saving in Deep with just depth per pixel and having to implement full OpenEXR
     if (exrToggle)
     {
@@ -209,6 +207,27 @@ void DrawGLScene()
                         rgb[3*i+2] );  // B
 
         float f = 595.f;
+
+        //fill gaps
+
+        //does a great job of filling small gaps, but where values *should* be zero (like windows)
+//        //and for larger gaps it goes a bit jank
+//        if (depth[i] == 0)
+//        {
+//            for (int x =0; x < 200; ++x)
+//            {
+//                if (depth[i+x] != 0)
+//                {
+//                    depth[i] = depth[i+x];
+//                    break;
+//                }
+
+//            }
+//            //depth[i] = depth[i+1];
+//        }
+
+
+        //end fill gaps
 
         //don't draw zero value points
         if (depth[i] != 0)

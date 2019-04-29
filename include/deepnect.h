@@ -151,7 +151,6 @@ float anglex = 0, angley = 0; // Panning angles
 float zoom = 1;               // Zoom factor
 bool color = true;            // Flag to indicate to use of color in the cloud
 
-
 bool record = false;            //recordflag
 
 std::vector<std::vector<uint8_t>> rgbSeq;   //Colour frame buffer
