@@ -22,6 +22,9 @@
 #endif
 
 
+bool topMarker = false;
+
+
 void fileWriter(int frameWrite)
 {
     std::cout<<"Saving frame: " << frameWrite << " of "<< frameNum<<'\n';
@@ -211,7 +214,7 @@ void DrawGLScene()
         //fill gaps
 
         //does a great job of filling small gaps, but where values *should* be zero (like windows)
-//        //and for larger gaps it goes a bit jank
+        //and for larger gaps it goes a bit jank, but funky for art
 //        if (depth[i] == 0)
 //        {
 //            for (int x =0; x < 200; ++x)
@@ -320,6 +323,7 @@ void DrawGLScene()
 
 
 
+
     // Place the camera
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -392,16 +396,8 @@ void DrawGLScene()
 
 void recordToggle()
 {
-    ///this would cause issue with first recording, so whatever
-//    if (!exrToggle && !bmpToggle && !plyToggle)
-//    {
-//        std::cout<< "No File Saving Specified. Cannot Record.\n";
-//    }
-//    else
-//    {
         std::cout<< "Recording to buffer...\n";
         record = !record;
-//    }
 }
 
 void exrToggleFunc()
@@ -447,34 +443,33 @@ void plyToggleFunc()
 }
 
 
-
 void keyPressed(unsigned char key, int x, int y)
 {
     switch (key)
     {
         case  'C':
         case  'c':
-            color = !color;
+            color = !color; //toggle colour in OpenGL view
         break;
 
         case 'R':
         case 'r':
-            recordToggle();
+            recordToggle(); //start or end recording
         break;
 
         case 'E':
         case 'e':
-            exrToggleFunc();
+            exrToggleFunc(); //turn EXR saving on or off - Default On
         break;
 
         case 'B':
         case 'b':
-            bmpToggleFunc();
+            bmpToggleFunc(); //turn BMP saving on or off - Default Off
         break;
 
         case 'P':
         case 'p':
-            plyToggleFunc();
+            plyToggleFunc(); //Turn PLY saving on or off - Default On
         break;
 
 
@@ -561,6 +556,7 @@ void printInfo()
     std::cout << "Toggle PLY Saving :   P"                 << std::endl;
     std::cout << "Quit              :   Q or Esc\n"        << std::endl;
 }
+
 
 
 int main(int argc, char **argv)

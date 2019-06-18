@@ -166,4 +166,5 @@ bool exrToggle = true;          //exr saving flag (true by default)
 bool bmpToggle = false;         //bmp saving flag
 bool plyToggle = false;         //point cloud saving flag
 
+
 #endif // DEEPNECT_H
